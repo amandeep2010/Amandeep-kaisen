@@ -13,6 +13,7 @@ const WHITE_THRESHOLD = 690;          // RGB sum above this = white background, 
 const IMAGE_FIT_WIDTH = 600;          // target width in 3D world units
 const Z_JITTER = 8;                   // slight depth variation for assembled image
 const MIN_BRIGHTNESS = 0.35;          // boost dim pixels so they're visible with additive blending
+const FRAME_INTERVAL_MS = 100;
 
 const IMAGE_MAP = {
     infinite_void:     '/infinite_void.jpg',
@@ -27,6 +28,10 @@ const IMAGE_MAP = {
 let scene, camera, renderer, composer;
 let particles, geometry;
 let ws;
+let webcamVideo = null;
+let webcamCanvas = null;
+let webcamCtx = null;
+let frameIntervalId = null;
 
 let scatteredPositions = new Float32Array(NUM_PARTICLES * 3);
 let scatteredColors    = new Float32Array(NUM_PARTICLES * 3);
@@ -295,13 +300,51 @@ async function init() {
 //  WEBCAM
 // ─────────────────────────────────────────────
 function setupWebcam() {
-    const video = document.getElementById('webcam');
+    webcamVideo = document.getElementById('webcam');
+
+    if (!webcamVideo) {
+        console.error('Webcam element (#webcam) not found.');
+        return;
+    }
+
+    webcamCanvas = document.createElement('canvas');
+    webcamCanvas.style.display = 'none';
+    document.body.appendChild(webcamCanvas);
+    webcamCtx = webcamCanvas.getContext('2d');
+
+    webcamVideo.style.display = 'none';
+
     if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
         navigator.mediaDevices.getUserMedia({ video: true }).then((stream) => {
-            video.srcObject = stream;
-            video.play();
-        }).catch(err => console.error('Webcam PIP error:', err));
+            webcamVideo.srcObject = stream;
+            webcamVideo.play().catch((err) => console.error('Webcam play error:', err));
+
+            webcamVideo.onloadedmetadata = () => {
+                webcamCanvas.width = webcamVideo.videoWidth || 640;
+                webcamCanvas.height = webcamVideo.videoHeight || 480;
+                startFrameStreamingLoop();
+            };
+        }).catch((err) => console.error('Webcam PIP error:', err));
+    } else {
+        console.error('getUserMedia is not supported in this browser.');
     }
+}
+
+function startFrameStreamingLoop() {
+    if (!webcamVideo || !webcamCanvas || !webcamCtx) return;
+    if (frameIntervalId !== null) return;
+
+    frameIntervalId = window.setInterval(() => {
+        if (webcamVideo.readyState < 2) return;
+
+        webcamCtx.drawImage(webcamVideo, 0, 0, webcamCanvas.width, webcamCanvas.height);
+        const base64String = webcamCanvas.toDataURL('image/jpeg', 0.5);
+
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ image: base64String }));
+            console.log('Frame sent to Render API');
+        }
+    }, FRAME_INTERVAL_MS);
 }
 
 // ─────────────────────────────────────────────
