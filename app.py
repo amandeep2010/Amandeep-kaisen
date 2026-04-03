@@ -116,13 +116,8 @@ async def process_request(path, request_headers):
     return None
 
 async def main_server():
-    print("WebSocket API Server listening on ws://localhost:8765")
-    async with websockets.serve(
-        handler,
-        "localhost",
-        8765,
-        process_request=process_request,
-    ):
+    print("WebSocket API Server listening on 0.0.0.0 (Render PORT or 8765)")
+    async with websockets.serve(handler, "0.0.0.0", int(os.environ.get("PORT", 8765))):
         await asyncio.Future()  # run forever
 
 if __name__ == "__main__":
