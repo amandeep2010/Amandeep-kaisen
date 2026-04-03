@@ -309,7 +309,7 @@ function setupWebcam() {
 // ─────────────────────────────────────────────
 function setupWebSocket() {
     const hud = document.getElementById('status-hud');
-    ws = new WebSocket('ws://localhost:8765');
+    ws = new WebSocket('wss://amandeep-kaisen.onrender.com');
 
     ws.onopen = () => {
         hud.innerText = 'API Connected. Searching for Gestures...';
