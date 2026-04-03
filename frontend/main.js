@@ -28,6 +28,7 @@ const IMAGE_MAP = {
 let scene, camera, renderer, composer;
 let particles, geometry;
 let ws;
+let socket;
 
 let scatteredPositions = new Float32Array(NUM_PARTICLES * 3);
 let scatteredColors    = new Float32Array(NUM_PARTICLES * 3);
@@ -311,19 +312,22 @@ function setupWebcam() {
             video.srcObject = stream;
             video.play();
 
+            // Make sure the canvas and socket are accessible here
+            const captureCanvas = document.createElement('canvas');
+            const captureCtx = captureCanvas.getContext('2d');
+
             setInterval(() => {
-                if (ws && ws.readyState === WebSocket.OPEN) {
+                // Check if socket exists and is open
+                if (typeof socket !== 'undefined' && socket.readyState === WebSocket.OPEN) {
                     if (video.videoWidth > 0) {
                         captureCanvas.width = video.videoWidth;
                         captureCanvas.height = video.videoHeight;
                         captureCtx.drawImage(video, 0, 0, captureCanvas.width, captureCanvas.height);
 
                         const base64String = captureCanvas.toDataURL('image/jpeg', 0.5);
-                        ws.send(JSON.stringify({ image: base64String }));
+                        socket.send(JSON.stringify({ image: base64String }));
                         console.log('Frame sent to Render API');
                     }
-                } else {
-                    console.log('Waiting for WebSocket to open...');
                 }
             }, 150);
         })
@@ -338,6 +342,7 @@ function setupWebcam() {
 function setupWebSocket() {
     const hud = document.getElementById('status-hud');
     ws = new WebSocket('wss://amandeep-kaisen.onrender.com');
+    socket = ws;
 
     ws.onopen = () => {
         hud.innerText = 'API Connected. Searching for Gestures...';
