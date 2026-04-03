@@ -9,6 +9,7 @@ from main import init_tracker, extract_landmarks
 import threading
 import os
 import signal
+import http
 
 # Global variable to hold the latest stabilized prediction
 latest_stable_label = "neutral"
@@ -106,9 +107,22 @@ async def handler(websocket):
         if len(connected_clients) == 0:
             shutdown_task = asyncio.ensure_future(schedule_shutdown())
 
+async def process_request(path, request_headers):
+    # Reply to non-WebSocket HTTP probes (for example Render health checks).
+    upgrade_header = request_headers.get("Upgrade", "")
+    if upgrade_header.lower() != "websocket":
+        return (http.HTTPStatus.OK, [], b"OK\n")
+
+    return None
+
 async def main_server():
     print("WebSocket API Server listening on ws://localhost:8765")
-    async with websockets.serve(handler, "localhost", 8765):
+    async with websockets.serve(
+        handler,
+        "localhost",
+        8765,
+        process_request=process_request,
+    ):
         await asyncio.Future()  # run forever
 
 if __name__ == "__main__":
@@ -120,4 +134,3 @@ if __name__ == "__main__":
         asyncio.run(main_server())
     except (KeyboardInterrupt, SystemExit):
         print("API Server Stopped.")
-
