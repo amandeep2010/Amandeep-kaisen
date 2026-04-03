@@ -28,10 +28,6 @@ const IMAGE_MAP = {
 let scene, camera, renderer, composer;
 let particles, geometry;
 let ws;
-let webcamVideo = null;
-let webcamCanvas = null;
-let webcamCtx = null;
-let frameIntervalId = null;
 
 let scatteredPositions = new Float32Array(NUM_PARTICLES * 3);
 let scatteredColors    = new Float32Array(NUM_PARTICLES * 3);
@@ -300,51 +296,40 @@ async function init() {
 //  WEBCAM
 // ─────────────────────────────────────────────
 function setupWebcam() {
-    webcamVideo = document.getElementById('webcam');
+    const video = document.getElementById('webcam');
+    const captureCanvas = document.createElement('canvas');
+    const captureCtx = captureCanvas.getContext('2d');
 
-    if (!webcamVideo) {
+    if (!video || !captureCtx) {
         console.error('Webcam element (#webcam) not found.');
         return;
     }
 
-    webcamCanvas = document.createElement('canvas');
-    webcamCanvas.style.display = 'none';
-    document.body.appendChild(webcamCanvas);
-    webcamCtx = webcamCanvas.getContext('2d');
+    navigator.mediaDevices.getUserMedia({ video: true })
+        .then((stream) => {
+            console.log('SUCCESS: Camera permission granted!');
+            video.srcObject = stream;
+            video.play();
 
-    webcamVideo.style.display = 'none';
+            setInterval(() => {
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    if (video.videoWidth > 0) {
+                        captureCanvas.width = video.videoWidth;
+                        captureCanvas.height = video.videoHeight;
+                        captureCtx.drawImage(video, 0, 0, captureCanvas.width, captureCanvas.height);
 
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        navigator.mediaDevices.getUserMedia({ video: true }).then((stream) => {
-            webcamVideo.srcObject = stream;
-            webcamVideo.play().catch((err) => console.error('Webcam play error:', err));
-
-            webcamVideo.onloadedmetadata = () => {
-                webcamCanvas.width = webcamVideo.videoWidth || 640;
-                webcamCanvas.height = webcamVideo.videoHeight || 480;
-                startFrameStreamingLoop();
-            };
-        }).catch((err) => console.error('Webcam PIP error:', err));
-    } else {
-        console.error('getUserMedia is not supported in this browser.');
-    }
-}
-
-function startFrameStreamingLoop() {
-    if (!webcamVideo || !webcamCanvas || !webcamCtx) return;
-    if (frameIntervalId !== null) return;
-
-    frameIntervalId = window.setInterval(() => {
-        if (webcamVideo.readyState < 2) return;
-
-        webcamCtx.drawImage(webcamVideo, 0, 0, webcamCanvas.width, webcamCanvas.height);
-        const base64String = webcamCanvas.toDataURL('image/jpeg', 0.5);
-
-        if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ image: base64String }));
-            console.log('Frame sent to Render API');
-        }
-    }, FRAME_INTERVAL_MS);
+                        const base64String = captureCanvas.toDataURL('image/jpeg', 0.5);
+                        ws.send(JSON.stringify({ image: base64String }));
+                        console.log('Frame sent to Render API');
+                    }
+                } else {
+                    console.log('Waiting for WebSocket to open...');
+                }
+            }, 150);
+        })
+        .catch((err) => {
+            console.error('FATAL CAMERA ERROR: Could not access webcam.', err);
+        });
 }
 
 // ─────────────────────────────────────────────
