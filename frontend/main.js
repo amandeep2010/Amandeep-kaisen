@@ -309,6 +309,7 @@ function setupWebcam() {
     navigator.mediaDevices.getUserMedia({ video: true })
         .then((stream) => {
             console.log('SUCCESS: Camera permission granted!');
+            video.style.display = 'block';
             video.srcObject = stream;
             video.play();
 
@@ -332,6 +333,7 @@ function setupWebcam() {
             }, 150);
         })
         .catch((err) => {
+            video.style.display = 'none';
             console.error('FATAL CAMERA ERROR: Could not access webcam.', err);
         });
 }
@@ -341,12 +343,18 @@ function setupWebcam() {
 // ─────────────────────────────────────────────
 function setupWebSocket() {
     const hud = document.getElementById('status-hud');
-    ws = new WebSocket('wss://amandeep-kaisen.onrender.com');
+    const configuredUrl = (import.meta.env.VITE_WS_URL || '').trim();
+    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    const localFallback = `${protocol}://${window.location.hostname}:8765`;
+    const wsUrl = configuredUrl || localFallback;
+
+    ws = new WebSocket(wsUrl);
     socket = ws;
 
     ws.onopen = () => {
         hud.innerText = 'API Connected. Searching for Gestures...';
         hud.style.color = '#0f0';
+        console.log(`[WebSocket] Connected to ${wsUrl}`);
     };
 
     ws.onclose = () => {

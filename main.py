@@ -1,8 +1,16 @@
+import os
+from pathlib import Path
+
+PROJECT_DIR = Path(__file__).resolve().parent
+os.environ.setdefault("MPLCONFIGDIR", str(PROJECT_DIR / ".mplconfig"))
+os.environ.setdefault("XDG_CACHE_HOME", str(PROJECT_DIR / ".cache"))
+os.environ.setdefault("PYTHONPYCACHEPREFIX", str(PROJECT_DIR / ".pycache"))
+
 import cv2
 import mediapipe as mp
 import numpy as np
 
-def init_tracker():
+def init_tracker(include_drawing=True):
     mp_hands = mp.solutions.hands
     # Phase 1, Task 3: track exactly 2 hands with a min detection confidence of 0.7
     hands = mp_hands.Hands(
@@ -11,7 +19,7 @@ def init_tracker():
         min_detection_confidence=0.7,
         min_tracking_confidence=0.5
     )
-    mp_drawing = mp.solutions.drawing_utils
+    mp_drawing = mp.solutions.drawing_utils if include_drawing else None
     return hands, mp_drawing, mp_hands
 
 def extract_landmarks(results) -> np.ndarray:

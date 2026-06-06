@@ -72,7 +72,9 @@ if [ ! -x "${PYTHON_BIN}" ]; then
     exit 1
 fi
 export MPLCONFIGDIR="${PROJECT_DIR}/.mplconfig"
-mkdir -p "${MPLCONFIGDIR}"
+export XDG_CACHE_HOME="${PROJECT_DIR}/.cache"
+export PYTHONPYCACHEPREFIX="${PROJECT_DIR}/.pycache"
+mkdir -p "${MPLCONFIGDIR}" "${XDG_CACHE_HOME}" "${PYTHONPYCACHEPREFIX}"
 "${PYTHON_BIN}" app.py &
 BACKEND_PID=$!
 echo "   Backend PID: $BACKEND_PID"

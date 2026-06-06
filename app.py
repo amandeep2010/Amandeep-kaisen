@@ -10,6 +10,18 @@ import threading
 import os
 import signal
 import http
+from pathlib import Path
+import warnings
+
+PROJECT_DIR = Path(__file__).resolve().parent
+os.environ.setdefault("MPLCONFIGDIR", str(PROJECT_DIR / ".mplconfig"))
+os.environ.setdefault("XDG_CACHE_HOME", str(PROJECT_DIR / ".cache"))
+os.environ.setdefault("PYTHONPYCACHEPREFIX", str(PROJECT_DIR / ".pycache"))
+warnings.filterwarnings(
+    "ignore",
+    message="X does not have valid feature names.*",
+    category=UserWarning,
+)
 
 # Global variable to hold the latest stabilized prediction
 latest_stable_label = "neutral"
@@ -28,7 +40,7 @@ def process_frames():
 
     # In macOS, starting Cap normally grabs the primary camera (often FaceTime / built-in)
     cap = cv2.VideoCapture(0)
-    hands, _, mp_hands = init_tracker()
+    hands, _, mp_hands = init_tracker(include_drawing=False)
 
     if not cap.isOpened():
         print("Error: Could not open webcam.")
@@ -116,8 +128,10 @@ async def process_request(path, request_headers):
     return None
 
 async def main_server():
-    print("WebSocket API Server listening on 0.0.0.0 (Render PORT or 8765)")
-    async with websockets.serve(handler, "0.0.0.0", int(os.environ.get("PORT", 8765))):
+    port = int(os.environ.get("PORT", 8765))
+    host = os.environ.get("HOST") or ("0.0.0.0" if "PORT" in os.environ else "127.0.0.1")
+    print(f"WebSocket API Server listening on {host}:{port}")
+    async with websockets.serve(handler, host, port):
         await asyncio.Future()  # run forever
 
 if __name__ == "__main__":

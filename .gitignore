@@ -9,6 +9,8 @@ __pycache__/
 .venv/
 venv/
 .mplconfig/
+.cache/
+.pycache/
 .pytest_cache/
 
 # Environment files
